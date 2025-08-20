@@ -25,8 +25,7 @@ echo "VOIPIRAN.io"
 echo "VOIPIRAN ChanSpy 1.0"
 sleep 1
 
-#############################ThePanel
-
+rootpw=$(sed -ne 's/.*mysqlrootpwd=//gp' /etc/issabel.conf)
 
 
 ####Install Source Gaurdian Files
@@ -76,6 +75,47 @@ exten => _34X.,1,ChanSpy(SIP/${EXTEN:2},EqB)
 
 EOD
 fi
+
+
+
+# شنود ساده
+query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
+VALUES('core','ChanSpy-Simple','VOIZ-شنود ساده، کد + داخلی','*30',NULL,'1','1') \
+ON DUPLICATE KEY UPDATE defaultcode='*30'"
+mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+
+# شنود صدای کارشناس فقط
+query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
+VALUES('core','ChanSpy-OnlyListen','VOIZ-فقط صدای کارشناس، کد + داخلی','*31',NULL,'1','1') \
+ON DUPLICATE KEY UPDATE defaultcode='*31'"
+mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+
+# شنود و نجوا (Whisper)
+query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
+VALUES('core','ChanSpy-Whisper','VOIZ-شنود و صحبت پنهانی، کد + داخلی','*32',NULL,'1','1') \
+ON DUPLICATE KEY UPDATE defaultcode='*32'"
+mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+
+# نجوا خصوصی (Private Whisper)
+query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
+VALUES('core','ChanSpy-PrivateWhisper','VOIZ-صحبت با کارشناس بدون شنیدن مشتری، کد + داخلی','*33',NULL,'1','1') \
+ON DUPLICATE KEY UPDATE defaultcode='*33'"
+mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+
+# شنود و ورود به مکالمه (Barge)
+query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
+VALUES('core','ChanSpy-Barge','VOIZ-شنود و مکالمه با هر دو طرف، کد + داخلی','*34',NULL,'1','1') \
+ON DUPLICATE KEY UPDATE defaultcode='*34'"
+mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+
+# شنود با تغییر حالت در حین تماس (DTMF)
+query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
+VALUES('core','ChanSpy-DTMF','VOIZ-تغییر حالت شنود حین تماس با کلید 4/5/6، کد + داخلی','*35',NULL,'1','1') \
+ON DUPLICATE KEY UPDATE defaultcode='*35'"
+mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+
+
+
 
 # Reload Asterisk
 echo -e "${CYAN}Reloading Asterisk...${NC}"
