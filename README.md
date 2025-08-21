@@ -42,6 +42,18 @@ VOIPIRAN ChanSpy Pro
 6 → ورود به تماس
 مثال: شماره‌گیری 3510 → شروع شنود داخلی 10 و کنترل با کلیدها.
 
+## نصب سریع و آسان با اجرا دستور زیر بر روی کنسول لینوکس:
+
+
+```
+curl -L -o voipiran_chanspy.zip https://github.com/voipiran/AsteriskChanSpyPro/archive/main.zip \
+&& unzip voipiran_chanspy.zip \
+&& cd AsteriskChanSpyPro-main \
+&& chmod 755 install_voipiran_chansp.sh \
+&& ./install_voipiran_chansp.sh -y
+
+```
+
 
 ## Give a Star! ⭐ یک ستاره با ما بدهید
 If you like this project or plan to use it in the future, please give it a star. Thanks 🙏
@@ -69,6 +81,10 @@ Modes included:
 
 Quick Install Command:
 ```
-curl -L -o voipiran_chanspy.zip https://github.com/voipiran/VOIPIRAN-ChanSpyPro/archive/master.zip && unzip voipiran_chanspy.zip && cd VOIPIRAN-ChanSpyPro-master && chmod 755 install_voipiran_chanspy.sh && ./install_voipiran_chanspy.sh -y
+curl -L -o voipiran_chanspy.zip https://github.com/voipiran/AsteriskChanSpyPro/archive/main.zip \
+&& unzip voipiran_chanspy.zip \
+&& cd AsteriskChanSpyPro-main \
+&& chmod 755 install_voipiran_chansp.sh \
+&& ./install_voipiran_chansp.sh -y
 
 ```
