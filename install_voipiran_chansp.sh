@@ -61,17 +61,21 @@ else
   cat <<'EOD' | sudo tee -a "$FILE" >/dev/null
 
 [voipiran-chanspypro]
+;;voipiran.io
+;;Hamed Kouhfallah
 ;; ChanSpy
 exten => _30X.,1,ChanSpy(SIP/${EXTEN:2},Eq)
-;; Only listen to audio coming from this channel.
+;;Only listen to audio coming from this channel.
 exten => _31X.,1,ChanSpy(SIP/${EXTEN:2},Eqo)
-;; Enable whisper mode, so the spying channel can talk to the spied-on channel.
+;;Enable whisper mode, so the spying channel can talk to the spied-on channel.
 exten => _32X.,1,ChanSpy(SIP/${EXTEN:2},Eqw)
-;; Enable private whisper mode, so the spying channel can talk to the spied-on channel but cannot listen to that channel.
+;;Enable private whisper mode, so the spying channel can talk to the spied-on channel but cannot listen to that channel.
 exten => _33X.,1,ChanSpy(SIP/${EXTEN:2},EqW)
-;; Instead of whispering on a single channel barge in on both channels involved in the call.
-;; Conference
+;;Instead of whispering on a single channel barge in on both channels involved in the call.
 exten => _34X.,1,ChanSpy(SIP/${EXTEN:2},EqB)
+;;4,5,6
+;;Override the typical numeric DTMF functionality and instead use DTMF to switch between spy modes.
+exten => _35X.,1,ChanSpy(SIP/${EXTEN:2},Eqd)
 
 EOD
 fi
