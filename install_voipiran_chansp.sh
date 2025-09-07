@@ -1,14 +1,10 @@
 #!/bin/bash
+set -u
 
 clear
-# Colorize output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-MAGENTA='\033[1;35m'
-BOLD='\033[1m'
-NC='\033[0m' # No color
+# ---- Colors
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; MAGENTA='\033[1;35m'; NC='\033[0m'
+
 echo -e "${MAGENTA}###############################################################${NC}"
 echo -e "${CYAN}██╗   ██╗ ██████╗ ██╗██████╗ ██╗██████╗  █████╗ ███╗   ██╗${NC}"
 echo -e "${CYAN}██║   ██║██╔═══██╗██║██╔══██╗██║██╔══██╗██╔══██╗████╗  ██║${NC}"
@@ -21,108 +17,174 @@ echo -e "${MAGENTA}                    https://voipiran.io                    ${
 echo -e "${MAGENTA}###############################################################${NC}"
 
 echo "Install VOIPIRAN ChanSpy Pro"
-echo "VOIPIRAN.io"
 echo "VOIPIRAN ChanSpy 1.0"
 sleep 1
 
-rootpw=$(sed -ne 's/.*mysqlrootpwd=//gp' /etc/issabel.conf)
+# ------------------------------
+# 1) تشخیص و دریافت اطلاعات دیتابیس (Issabel / FreePBX / root .my.cnf / پرسش از کاربر)
+# خروجی: DB_USER, DB_PASS, DB_HOST, DB_NAME
+# ------------------------------
+DB_USER=""
+DB_PASS=""
+DB_HOST="127.0.0.1"
+DB_NAME="asterisk"
 
-
-####Install Source Gaurdian Files
-echo "------------START-----------------"
-# Get PHP version
-php_version=$(php -r "echo PHP_MAJOR_VERSION;")
-
-
-###Add from-internal-custom
-# File to check, There is no from-internal-custom on Issabel5
-FILE="/etc/asterisk/extensions_custom.conf"
-LINE="[from-internal-custom]"
-if ! grep -qF "$LINE" "$FILE"; then
-    #echo "The line '$LINE' does not exist in the file '$FILE'. Adding the line."
-    echo "$LINE" | sudo tee -a "$FILE"
+if [[ -f /etc/issabel.conf ]]; then
+  # Issabel
+  echo -e "${CYAN}Detected Issabel...${NC}"
+  rootpw=$(sed -ne 's/.*mysqlrootpwd=//p' /etc/issabel.conf | tr -d '[:space:]')
+  if [[ -n "${rootpw:-}" ]]; then
+    DB_USER="root"
+    DB_PASS="$rootpw"
+    DB_NAME="asterisk"
+  fi
 fi
 
+if [[ -z "$DB_PASS" && -f /etc/freepbx.conf ]]; then
+  # FreePBX (جدید)
+  echo -e "${CYAN}Detected FreePBX (freepbx.conf)...${NC}"
+  amp_user=$(grep -Po "(?<=amp_conf\['AMPDBUSER'\]\s*=\s*')[^']+" /etc/freepbx.conf | head -n1)
+  amp_pass=$(grep -Po "(?<=amp_conf\['AMPDBPASS'\]\s*=\s*')[^']+" /etc/freepbx.conf | head -n1)
+  amp_host=$(grep -Po "(?<=amp_conf\['AMPDBHOST'\]\s*=\s*')[^']+" /etc/freepbx.conf | head -n1)
+  amp_name=$(grep -Po "(?<=amp_conf\['AMPDBNAME'\]\s*=\s*')[^']+" /etc/freepbx.conf | head -n1)
 
+  [[ -n "$amp_user" ]] && DB_USER="$amp_user"
+  [[ -n "$amp_pass" ]] && DB_PASS="$amp_pass"
+  [[ -n "$amp_host" ]] && DB_HOST="$amp_host"
+  [[ -n "$amp_name" ]] && DB_NAME="$amp_name"
+fi
 
-# Ensure include line exists directly after [from-internal-custom]
-if grep -qF "include => voipiran-chanspypro" "$FILE"; then
+if [[ -z "$DB_PASS" && -f /etc/amportal.conf ]]; then
+  # FreePBX (قدیمی)
+  echo -e "${CYAN}Detected FreePBX (amportal.conf legacy)...${NC}"
+  amp_user=$(awk -F= '/^AMPDBUSER/ {print $2}' /etc/amportal.conf | tr -d '[:space:]')
+  amp_pass=$(awk -F= '/^AMPDBPASS/ {print $2}' /etc/amportal.conf | tr -d '[:space:]')
+  amp_host=$(awk -F= '/^AMPDBHOST/ {print $2}' /etc/amportal.conf | tr -d '[:space:]')
+  amp_name=$(awk -F= '/^AMPDBNAME/ {print $2}' /etc/amportal.conf | tr -d '[:space:]')
+
+  [[ -n "$amp_user" ]] && DB_USER="$amp_user"
+  [[ -n "$amp_pass" ]] && DB_PASS="$amp_pass"
+  [[ -n "$amp_host" ]] && DB_HOST="$amp_host"
+  [[ -n "$amp_name" ]] && DB_NAME="$amp_name"
+fi
+
+if [[ -z "$DB_PASS" && -f /root/.my.cnf ]]; then
+  # اگر root .my.cnf موجود است
+  echo -e "${CYAN}Using /root/.my.cnf credentials...${NC}"
+  rootpw=$(awk -F= '/^[[:space:]]*password[[:space:]]*=/ {print $2}' /root/.my.cnf | tr -d '[:space:]')
+  if [[ -n "${rootpw:-}" ]]; then
+    DB_USER="root"
+    DB_PASS="$rootpw"
+  fi
+fi
+
+if [[ -z "$DB_USER" || -z "$DB_PASS" ]]; then
+  echo -e "${YELLOW}Could not auto-detect DB credentials. Please enter manually.${NC}"
+  read -rp "MySQL username (default root): " tmpu
+  read -srp "MySQL password: " tmpp; echo
+  [[ -n "${tmpu:-}" ]] && DB_USER="$tmpu" || DB_USER="root"
+  DB_PASS="$tmpp"
+fi
+
+echo -e "DB user: ${GREEN}${DB_USER}${NC}"
+echo -e "DB host: ${GREEN}${DB_HOST}${NC}"
+echo -e "DB name: ${GREEN}${DB_NAME}${NC}"
+
+# ------------------------------
+# 2) افزودن کانتکست و اینکلود در extensions_custom.conf
+# ------------------------------
+FILE="/etc/asterisk/extensions_custom.conf"
+LINE="[from-internal-custom]"
+
+# اگر سکشن وجود ندارد، اضافه‌اش کن
+if ! grep -qF "$LINE" "$FILE" 2>/dev/null; then
+  echo -e "${YELLOW}Adding [from-internal-custom] to ${FILE}${NC}"
+  echo "$LINE" | sudo tee -a "$FILE" >/dev/null
+fi
+
+# include => voipiran-chanspypro را بعد از سکشن اضافه کن اگر نبود
+if grep -qF "include => voipiran-chanspypro" "$FILE" 2>/dev/null; then
   echo -e "${GREEN}include => voipiran-chanspypro already exists${NC}"
 else
-  echo -e "${YELLOW}Adding include => voipiran-chanspypro after [from-internal-custom]${NC}"
+  echo -e "${YELLOW}Adding include => voipiran-chanspypro${NC}"
   sudo sed -i '/\[from-internal-custom\]/a include => voipiran-chanspypro' "$FILE"
 fi
 
-# Add dialplan block at end if not already present
-if grep -qF "[voipiran-chanspypro]" "$FILE"; then
-  echo -e "${GREEN}[voipiran-chanspypro] context already exists${NC}"
+# خود کانتکست voipiran-chanspypro اگر نیست، اضافه کن
+if grep -qF "[voipiran-chanspypro]" "$FILE" 2>/dev/null; then
+  echo -e "${GREEN}[voipiran-chanspypro] already exists${NC}"
 else
-  echo -e "${YELLOW}Adding voipiran-chanspypro context to end of file${NC}"
+  echo -e "${YELLOW}Appending [voipiran-chanspypro] context${NC}"
   cat <<'EOD' | sudo tee -a "$FILE" >/dev/null
 
 [voipiran-chanspypro]
-;;voipiran.io
-;;Hamed Kouhfallah
+;; voipiran.io - Hamed Kouhfallah
 ;; ChanSpy
 exten => _30X.,1,ChanSpy(SIP/${EXTEN:2},Eq)
-;;Only listen to audio coming from this channel.
+;; Only listen to audio coming from this channel.
 exten => _31X.,1,ChanSpy(SIP/${EXTEN:2},Eqo)
-;;Enable whisper mode, so the spying channel can talk to the spied-on channel.
+;; Whisper mode (agent whisper)
 exten => _32X.,1,ChanSpy(SIP/${EXTEN:2},Eqw)
-;;Enable private whisper mode, so the spying channel can talk to the spied-on channel but cannot listen to that channel.
+;; Private whisper (talk to agent, cannot listen to agent)
 exten => _33X.,1,ChanSpy(SIP/${EXTEN:2},EqW)
-;;Instead of whispering on a single channel barge in on both channels involved in the call.
+;; Barge in both channels
 exten => _34X.,1,ChanSpy(SIP/${EXTEN:2},EqB)
-;;4,5,6
-;;Override the typical numeric DTMF functionality and instead use DTMF to switch between spy modes.
+;; DTMF mode changes (4/5/6)
 exten => _35X.,1,ChanSpy(SIP/${EXTEN:2},Eqd)
-
 EOD
 fi
 
+# ------------------------------
+# 3) درج/به‌روزرسانی Feature Codes در دیتابیس
+# جدول: featurecodes  (FreePBX/Issabel هردو)
+# ------------------------------
+run_query () {
+  local sql="$1"
+  mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$sql" >/dev/null 2>&1
+  return $?
+}
 
+echo -e "${CYAN}Updating feature codes...${NC}"
 
 # شنود ساده
-query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
-VALUES('core','ChanSpy-Simple','VOIZ-شنود ساده، کد + داخلی','*30',NULL,'1','1') \
-ON DUPLICATE KEY UPDATE defaultcode='*30'"
-mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+run_query "INSERT INTO featurecodes (modulename, featurename, description, defaultcode, customcode, enabled, providedest)
+VALUES ('core','ChanSpy-Simple','VOIZ-شنود ساده، کد + داخلی','*30',NULL,'1','1')
+ON DUPLICATE KEY UPDATE defaultcode='*30', enabled='1';"
 
-# شنود صدای کارشناس فقط
-query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
-VALUES('core','ChanSpy-OnlyListen','VOIZ-فقط صدای کارشناس، کد + داخلی','*31',NULL,'1','1') \
-ON DUPLICATE KEY UPDATE defaultcode='*31'"
-mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+# فقط صدای کارشناس
+run_query "INSERT INTO featurecodes (modulename, featurename, description, defaultcode, customcode, enabled, providedest)
+VALUES ('core','ChanSpy-OnlyListen','VOIZ-فقط صدای کارشناس، کد + داخلی','*31',NULL,'1','1')
+ON DUPLICATE KEY UPDATE defaultcode='*31', enabled='1';"
 
-# شنود و نجوا (Whisper)
-query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
-VALUES('core','ChanSpy-Whisper','VOIZ-شنود و صحبت پنهانی، کد + داخلی','*32',NULL,'1','1') \
-ON DUPLICATE KEY UPDATE defaultcode='*32'"
-mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+# شنود + نجوا (Whisper)
+run_query "INSERT INTO featurecodes (modulename, featurename, description, defaultcode, customcode, enabled, providedest)
+VALUES ('core','ChanSpy-Whisper','VOIZ-شنود و صحبت پنهانی، کد + داخلی','*32',NULL,'1','1')
+ON DUPLICATE KEY UPDATE defaultcode='*32', enabled='1';"
 
-# نجوا خصوصی (Private Whisper)
-query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
-VALUES('core','ChanSpy-PrivateWhisper','VOIZ-صحبت با کارشناس بدون شنیدن مشتری، کد + داخلی','*33',NULL,'1','1') \
-ON DUPLICATE KEY UPDATE defaultcode='*33'"
-mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+# نجوا خصوصی
+run_query "INSERT INTO featurecodes (modulename, featurename, description, defaultcode, customcode, enabled, providedest)
+VALUES ('core','ChanSpy-PrivateWhisper','VOIZ-صحبت با کارشناس بدون شنیدن مشتری، کد + داخلی','*33',NULL,'1','1')
+ON DUPLICATE KEY UPDATE defaultcode='*33', enabled='1';"
 
-# شنود و ورود به مکالمه (Barge)
-query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
-VALUES('core','ChanSpy-Barge','VOIZ-شنود و مکالمه با هر دو طرف، کد + داخلی','*34',NULL,'1','1') \
-ON DUPLICATE KEY UPDATE defaultcode='*34'"
-mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+# Barge
+run_query "INSERT INTO featurecodes (modulename, featurename, description, defaultcode, customcode, enabled, providedest)
+VALUES ('core','ChanSpy-Barge','VOIZ-شنود و مکالمه با هر دو طرف، کد + داخلی','*34',NULL,'1','1')
+ON DUPLICATE KEY UPDATE defaultcode='*34', enabled='1';"
 
-# شنود با تغییر حالت در حین تماس (DTMF)
-query="insert into featurecodes (modulename,featurename,description,defaultcode,customcode,enabled,providedest) \
-VALUES('core','ChanSpy-DTMF','VOIZ-تغییر حالت شنود حین تماس با کلید 4/5/6، کد + داخلی','*35',NULL,'1','1') \
-ON DUPLICATE KEY UPDATE defaultcode='*35'"
-mysql -hlocalhost -uroot -p$rootpw asterisk -e "$query" >/dev/null 2>&1
+# DTMF Mode Change
+run_query "INSERT INTO featurecodes (modulename, featurename, description, defaultcode, customcode, enabled, providedest)
+VALUES ('core','ChanSpy-DTMF','VOIZ-تغییر حالت شنود حین تماس با کلید 4/5/6، کد + داخلی','*35',NULL,'1','1')
+ON DUPLICATE KEY UPDATE defaultcode='*35', enabled='1';"
 
+echo -e "${GREEN}Feature codes updated.${NC}"
 
+# ------------------------------
+# 4) Reload (FreePBX اولویت دارد)
+# ------------------------------
+echo -e "${CYAN}Reloading dialplan...${NC}"
+if command -v fwconsole >/dev/null 2>&1; then
+  sudo fwconsole reload >/dev/null 2>&1 && echo -e "${GREEN}fwconsole reload done.${NC}" || echo -e "${YELLOW}fwconsole reload failed; trying asterisk reload...${NC}"
+fi
+sudo asterisk -rx "dialplan reload" >/dev/null 2>&1 && echo -e "${GREEN}Asterisk dialplan reloaded.${NC}"
 
-
-# Reload Asterisk
-echo -e "${CYAN}Reloading Asterisk...${NC}"
-sudo asterisk -rx "dialplan reload"
 echo -e "${GREEN}Installation completed successfully!${NC}"
-
