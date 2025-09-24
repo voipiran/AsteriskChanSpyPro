@@ -43,7 +43,7 @@ curl -L -o voipiran_chanspy.zip https://github.com/voipiran/AsteriskChanSpyPro/a
 && unzip voipiran_chanspy.zip \
 && cd AsteriskChanSpyPro-main \
 && chmod 755 install_voipiran_chansp.sh \
-&& ./install_voipiran_chansp.sh -y
+&& ./install.sh -y
 
 ```
 
@@ -78,6 +78,6 @@ curl -L -o voipiran_chanspy.zip https://github.com/voipiran/AsteriskChanSpyPro/a
 && unzip voipiran_chanspy.zip \
 && cd AsteriskChanSpyPro-main \
 && chmod 755 install_voipiran_chansp.sh \
-&& ./install_voipiran_chansp.sh -y
+&& ./installsh -y
 
 ```
