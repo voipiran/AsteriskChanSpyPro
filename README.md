@@ -77,7 +77,7 @@ Quick Install Command:
 curl -L -o voipiran_chanspy.zip https://github.com/voipiran/AsteriskChanSpyPro/archive/main.zip \
 && unzip voipiran_chanspy.zip \
 && cd AsteriskChanSpyPro-main \
-&& chmod 755 install_voipiran_chansp.sh \
+&& chmod 755 install.sh \
 && ./installsh -y
 
 ```
