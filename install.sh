@@ -120,17 +120,17 @@ else
 [voipiran-chanspypro]
 ;; voipiran.io - Hamed Kouhfallah
 ;; ChanSpy
-exten => _*30X.,1,ChanSpy(SIP/${EXTEN:2},Eq)
+exten => _*30X.,1,ChanSpy(SIP/${EXTEN:3},Eq)
 ;; Only listen to audio coming from this channel.
-exten => _*31X.,1,ChanSpy(SIP/${EXTEN:2},Eqo)
+exten => _*31X.,1,ChanSpy(SIP/${EXTEN:3},Eqo)
 ;; Whisper mode (agent whisper)
-exten => _*32X.,1,ChanSpy(SIP/${EXTEN:2},Eqw)
+exten => _*32X.,1,ChanSpy(SIP/${EXTEN:3},Eqw)
 ;; Private whisper (talk to agent, cannot listen to agent)
-exten => _*33X.,1,ChanSpy(SIP/${EXTEN:2},EqW)
+exten => _*33X.,1,ChanSpy(SIP/${EXTEN:3},EqW)
 ;; Barge in both channels
-exten => _*34X.,1,ChanSpy(SIP/${EXTEN:2},EqB)
+exten => _*34X.,1,ChanSpy(SIP/${EXTEN:3},EqB)
 ;; DTMF mode changes (4/5/6)
-exten => _*35X.,1,ChanSpy(SIP/${EXTEN:2},Eqd)
+exten => _*35X.,1,ChanSpy(SIP/${EXTEN:3},Eqd)
 EOD
 fi
 
