@@ -116,21 +116,16 @@ if grep -qF "[voipiran-chanspypro]" "$FILE" 2>/dev/null; then
 else
   echo -e "${YELLOW}Appending [voipiran-chanspypro] context${NC}"
   cat <<'EOD' | sudo tee -a "$FILE" >/dev/null
-
 [voipiran-chanspypro]
-;; voipiran.io - Hamed Kouhfallah
-;; ChanSpy
-exten => _*30X.,1,ChanSpy(SIP/${EXTEN:3},Eq)
-;; Only listen to audio coming from this channel.
-exten => _*31X.,1,ChanSpy(SIP/${EXTEN:3},Eqo)
-;; Whisper mode (agent whisper)
-exten => _*32X.,1,ChanSpy(SIP/${EXTEN:3},Eqw)
-;; Private whisper (talk to agent, cannot listen to agent)
-exten => _*33X.,1,ChanSpy(SIP/${EXTEN:3},EqW)
-;; Barge in both channels
-exten => _*34X.,1,ChanSpy(SIP/${EXTEN:3},EqB)
-;; DTMF mode changes (4/5/6)
-exten => _*35X.,1,ChanSpy(SIP/${EXTEN:3},Eqd)
+;; voipiran.io - Hamed Kouhfallah - Updated for SIP + PJSIP using ExtenSpy (2025)
+;; ExtenSpy: Searches active channels by extension (SIP/PJSIP/any type)
+
+exten => _*30X.,1,ExtenSpy(${EXTEN:3},Eq)      ;; فقط شنیدن
+exten => _*31X.,1,ExtenSpy(${EXTEN:3},Eqo)     ;; فقط شنیدن (quiet)
+exten => _*32X.,1,ExtenSpy(${EXTEN:3},Eqw)     ;; Whisper به agent
+exten => _*33X.,1,ExtenSpy(${EXTEN:3},EqW)     ;; Private whisper
+exten => _*34X.,1,ExtenSpy(${EXTEN:3},EqB)     ;; Barge-in
+exten => _*35X.,1,ExtenSpy(${EXTEN:3},Eqd)     ;; DTMF switchable
 EOD
 fi
 
